@@ -1,18 +1,41 @@
 import { Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { Runtime, FunctionUrlAuthType } from "aws-cdk-lib/aws-lambda";
+import {
+  Runtime,
+  FunctionUrlAuthType,
+  DockerImageFunction,
+  DockerImageCode,
+} from "aws-cdk-lib/aws-lambda";
 import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { StringParameter } from "aws-cdk-lib/aws-ssm";
 
 export class TutorStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
-    // lambdaの関数
+    // 環境変数
+    const channelAccessToken = StringParameter.fromStringParameterAttributes(
+      this,
+      "tutor-channel-access-token",
+      { parameterName: "tutor-channel-access-token" }
+    ).stringValue;
+
+    const channelSecret = StringParameter.fromStringParameterAttributes(
+      this,
+      "tutor-channel-secret",
+      { parameterName: "tutor-channel-secret" }
+    ).stringValue;
+
+    // lambda関数
     const fn = new NodejsFunction(this, "lambda", {
       entry: "lambda/index.ts",
       handler: "handler", // entryファイルからexportされたhandler関数を指定
       runtime: Runtime.NODEJS_20_X,
+      environment: {
+        CHANNEL_ACCESS_TOKEN: channelAccessToken,
+        CHANNEL_SECRET: channelSecret,
+      },
     });
 
     // api gateway経由で呼び出すだけなら、関数URLは不要
@@ -22,6 +45,7 @@ export class TutorStack extends Stack {
     //   authType: FunctionUrlAuthType.NONE,
     // });
 
+    // api gateway
     new LambdaRestApi(this, "myapi", {
       handler: fn,
     });
