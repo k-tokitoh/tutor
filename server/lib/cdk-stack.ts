@@ -4,7 +4,7 @@ import { Runtime, FunctionUrlAuthType } from "aws-cdk-lib/aws-lambda";
 import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
-export class MyAppStack extends Stack {
+export class TutorStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
