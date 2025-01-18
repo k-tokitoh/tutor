@@ -1,4 +1,4 @@
-import { Stack, StackProps } from "aws-cdk-lib";
+import { Duration, Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import {
   Runtime,
@@ -9,6 +9,7 @@ import {
 import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
+import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 
 export class TutorStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -32,11 +33,20 @@ export class TutorStack extends Stack {
       entry: "lambda/index.ts",
       handler: "handler", // entryファイルからexportされたhandler関数を指定
       runtime: Runtime.NODEJS_20_X,
+      timeout: Duration.seconds(30), // デフォルトは3秒
+      // fn.addEnvironment() でも追加できるよう
       environment: {
         CHANNEL_ACCESS_TOKEN: channelAccessToken,
         CHANNEL_SECRET: channelSecret,
       },
     });
+
+    const policyBedrock = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["bedrock:InvokeModel"],
+      resources: ["*"], // リソースを限定したい
+    });
+    fn.addToRolePolicy(policyBedrock);
 
     // api gateway経由で呼び出すだけなら、関数URLは不要
     // fn.addFunctionUrl({
