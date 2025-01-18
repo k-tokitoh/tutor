@@ -1,18 +1,16 @@
 import { Hono } from "hono";
 import { handle, LambdaContext, LambdaEvent } from "hono/aws-lambda";
-import { streamHandle } from "hono/aws-lambda";
-import { stream, streamText, streamSSE } from "hono/streaming";
 import {
   middleware,
   messagingApi,
   Message as LineMessage,
+  WebhookEvent,
+  WebhookRequestBody,
 } from "@line/bot-sdk";
 import { env } from "hono/adapter";
 import {
   BedrockRuntimeClient,
-  InvokeModelCommand,
-  InvokeModelResponse,
-  Message,
+  ConverseCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 
 type Bindings = {
@@ -44,13 +42,21 @@ app.post("/webhook", async (c) => {
 
   // 署名を検証する
   console.log({ body: c.env.event.body });
-  const json = JSON.parse(c.env.event.body ?? "");
+  const json: WebhookRequestBody = JSON.parse(c.env.event.body ?? "");
   // 複数のイベントがbatchでwebhookに送られてくることがあるよう
-  const result = await Promise.all(
-    (json as any).events.map((e: any) => handleEvent(e))
-  ).then((result) => {
-    console.log({ result });
-  });
+  await Promise.all(
+    json.events.map((event) => {
+      handleEvent(event).catch((e) => {
+        console.error(e);
+        if (event.type === "message") {
+          client.replyMessage({
+            replyToken: event.replyToken,
+            messages: [{ type: "text", text: e.message }],
+          });
+        }
+      });
+    })
+  );
 });
 
 // regionもハードコードはやめる
@@ -67,43 +73,31 @@ const client = new messagingApi.MessagingApiClient({
 
 // 個々のイベント（メッセージ）をハンドルする
 // このイベントのスキームはline側で定義されているはず
-const handleEvent = async (event: any): Promise<any> => {
+const handleEvent = async (event: WebhookEvent): Promise<void> => {
   if (event.type !== "message" || event.message.type !== "text") {
     // テキストメッセージ以外はスルー
     return Promise.resolve(undefined);
   }
 
-  const command = new InvokeModelCommand({
-    // v2もある
-    modelId: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    body: JSON.stringify({
-      anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: event.message.text }],
-        },
-      ],
-    }),
-    accept: "application/json",
-    contentType: "application/json",
+  const command = new ConverseCommand({
+    modelId: "anthropic.claude-3-5-sonnet-20240620-v1:0", // v2もある
+    messages: [
+      {
+        role: "user",
+        content: [{ text: event.message.text }],
+      },
+    ],
+    inferenceConfig: { maxTokens: 512 },
   });
-  console.log({ command });
-  const responseBedrock = await clientBedrock.send(command);
-  console.log({ responseBedrock });
-  const jsonBedrock: Message = JSON.parse(
-    Buffer.from(responseBedrock.body).toString("utf-8")
-  );
-  console.dir({ jsonBedrock }, { depth: null });
+  const res = await clientBedrock.send(command);
+  console.log({ res });
 
   const message = {
     type: "text",
-    text: jsonBedrock.content?.[0].text ?? "",
+    text: res.output?.message?.content?.[0].text ?? "",
   } satisfies LineMessage;
 
-  console.log("about to reply.");
-  return client.replyMessage({
+  client.replyMessage({
     replyToken: event.replyToken,
     messages: [message],
   });
