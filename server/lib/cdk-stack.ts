@@ -32,8 +32,11 @@ export class TutorStack extends Stack {
     const fn = new NodejsFunction(this, "lambda", {
       entry: "lambda/index.ts",
       handler: "handler", // entryファイルからexportされたhandler関数を指定
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_22_X,
       timeout: Duration.seconds(30), // デフォルトは3秒
+      bundling: {
+        bundleAwsSDK: true,
+      },
       // fn.addEnvironment() でも追加できるよう
       environment: {
         CHANNEL_ACCESS_TOKEN: channelAccessToken,

@@ -1,17 +1,12 @@
 import { Hono } from "hono";
 import { handle, LambdaContext, LambdaEvent } from "hono/aws-lambda";
 import {
-  middleware,
   messagingApi,
   Message as LineMessage,
   WebhookEvent,
   WebhookRequestBody,
 } from "@line/bot-sdk";
-import { env } from "hono/adapter";
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-} from "@aws-sdk/client-bedrock-runtime";
+import { ChatBedrockConverse } from "@langchain/aws";
 
 type Bindings = {
   event: LambdaEvent;
@@ -45,8 +40,9 @@ app.post("/webhook", async (c) => {
   const json: WebhookRequestBody = JSON.parse(c.env.event.body ?? "");
   // 複数のイベントがbatchでwebhookに送られてくることがあるよう
   await Promise.all(
-    json.events.map((event) => {
+    json.events.map((event) =>
       handleEvent(event).catch((e) => {
+        // lineでエラーを検知したいのでreplyする
         console.error(e);
         if (event.type === "message") {
           client.replyMessage({
@@ -54,18 +50,10 @@ app.post("/webhook", async (c) => {
             messages: [{ type: "text", text: e.message }],
           });
         }
-      });
-    })
+      })
+    )
   );
 });
-
-// regionもハードコードはやめる
-const clientBedrock = new BedrockRuntimeClient({ region: "us-east-1" });
-
-// secretはどう使われている？
-const config = {
-  channelSecret: process.env.CHANNEL_SECRET,
-};
 
 const client = new messagingApi.MessagingApiClient({
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN!,
@@ -74,30 +62,26 @@ const client = new messagingApi.MessagingApiClient({
 // 個々のイベント（メッセージ）をハンドルする
 // このイベントのスキームはline側で定義されているはず
 const handleEvent = async (event: WebhookEvent): Promise<void> => {
+  console.log("start handleEvent");
+
   if (event.type !== "message" || event.message.type !== "text") {
+    console.log("handleEvent early return");
     // テキストメッセージ以外はスルー
     return Promise.resolve(undefined);
   }
 
-  const command = new ConverseCommand({
-    modelId: "anthropic.claude-3-5-sonnet-20240620-v1:0", // v2もある
-    messages: [
-      {
-        role: "user",
-        content: [{ text: event.message.text }],
-      },
-    ],
-    inferenceConfig: { maxTokens: 512 },
+  const llm = new ChatBedrockConverse({
+    model: "anthropic.claude-3-5-sonnet-20240620-v1:0",
   });
-  const res = await clientBedrock.send(command);
-  console.log({ res });
+
+  const res = await llm.invoke(event.message.text);
 
   const message = {
     type: "text",
-    text: res.output?.message?.content?.[0].text ?? "",
+    text: res!.content.toString() ?? "",
   } satisfies LineMessage;
 
-  client.replyMessage({
+  await client.replyMessage({
     replyToken: event.replyToken,
     messages: [message],
   });
