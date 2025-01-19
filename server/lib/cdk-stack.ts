@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Duration, Stack, StackProps, RemovalPolicy } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import {
   Runtime,
@@ -10,6 +10,12 @@ import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import {
+  Bucket,
+  BucketEncryption,
+  BlockPublicAccess,
+} from "aws-cdk-lib/aws-s3";
+import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 
 export class TutorStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -61,6 +67,26 @@ export class TutorStack extends Stack {
     // api gateway
     new LambdaRestApi(this, "myapi", {
       handler: fn,
+    });
+
+    // s3
+    const sourceBucket = new Bucket(this, "S3Bucket", {
+      // グローバルに一意な必要あり
+      bucketName: "tutor-cdk-static-file-deploy",
+      encryption: BucketEncryption.S3_MANAGED,
+      versioned: false,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ACLS,
+      publicReadAccess: true,
+      removalPolicy: RemovalPolicy.RETAIN,
+      enforceSSL: true,
+    });
+
+    // bucketにデプロイ
+    new BucketDeployment(this, "S3Deployment", {
+      sources: [Source.asset("../client/dist")],
+      destinationBucket: sourceBucket,
+      // distribution,
+      // distributionPaths: ["/*"],
     });
   }
 }
