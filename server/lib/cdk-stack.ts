@@ -1,4 +1,10 @@
-import { Duration, Stack, StackProps, RemovalPolicy } from "aws-cdk-lib";
+import {
+  Duration,
+  Stack,
+  StackProps,
+  RemovalPolicy,
+  CfnOutput,
+} from "aws-cdk-lib";
 import { Construct } from "constructs";
 import {
   Runtime,
@@ -16,6 +22,8 @@ import {
   BlockPublicAccess,
 } from "aws-cdk-lib/aws-s3";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
+import { Distribution } from "aws-cdk-lib/aws-cloudfront";
+import { S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 
 export class TutorStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -70,7 +78,7 @@ export class TutorStack extends Stack {
     });
 
     // s3
-    const sourceBucket = new Bucket(this, "S3Bucket", {
+    const destinationBucket = new Bucket(this, "S3Bucket", {
       // グローバルに一意な必要あり
       bucketName: "tutor-cdk-static-file-deploy",
       encryption: BucketEncryption.S3_MANAGED,
@@ -81,12 +89,33 @@ export class TutorStack extends Stack {
       enforceSSL: true,
     });
 
+    // cloudfront
+    const distribution = new Distribution(this, "WebsiteDistribution", {
+      defaultRootObject: "index.html",
+      defaultBehavior: {
+        origin: S3BucketOrigin.withOriginAccessControl(destinationBucket),
+      },
+      // hoge.com/foo にアクセスしたら cfは hoge.com/foo/index.html にアクセスしてしまう。
+      // この場合に hoge.com/index.html を返す。ブラウザは /foo を持っているので、jsがよしなにroutingする
+      errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+        },
+      ],
+    });
+
     // bucketにデプロイ
     new BucketDeployment(this, "S3Deployment", {
       sources: [Source.asset("../client/dist")],
-      destinationBucket: sourceBucket,
-      // distribution,
-      // distributionPaths: ["/*"],
+      destinationBucket,
+      distribution,
+      distributionPaths: ["/*"],
+    });
+
+    new CfnOutput(this, "Hosting URL", {
+      value: "https://" + distribution.distributionDomainName,
     });
   }
 }
