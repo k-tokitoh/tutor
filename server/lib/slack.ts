@@ -37,6 +37,12 @@ export class Slack extends Construct {
       { parameterName: "tutor-slack-token" }
     ).stringValue;
 
+    const openAIApiKey = StringParameter.fromStringParameterAttributes(
+      this,
+      "tutor-openai-api-key",
+      { parameterName: "tutor-openai-api-key" }
+    ).stringValue;
+
     // lambda関数
     const fn = new NodejsFunction(this, "thoth-lambda", {
       entry: "lambda/slack.ts",
@@ -49,15 +55,9 @@ export class Slack extends Construct {
       // fn.addEnvironment() でも追加できるよう
       environment: {
         SLACK_TOKEN: slackToken,
+        OPENAI_API_KEY: openAIApiKey,
       },
     });
-
-    const policyBedrock = new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ["bedrock:InvokeModel"],
-      resources: ["*"], // リソースを限定したい
-    });
-    fn.addToRolePolicy(policyBedrock);
 
     // api gateway
     new LambdaRestApi(this, "thoth-api", {
