@@ -52,6 +52,13 @@ export class Slack extends Construct {
       },
     });
 
+    const policyBedrock = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["bedrock:InvokeModel"],
+      resources: ["*"], // リソースを限定したい
+    });
+    fn.addToRolePolicy(policyBedrock);
+
     // api gateway
     new LambdaRestApi(this, "thoth-api", {
       handler: fn,
