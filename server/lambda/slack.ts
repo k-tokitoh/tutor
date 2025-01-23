@@ -15,6 +15,7 @@ type Bindings = {
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.post("/webhook", async (c) => {
+  // todo: sdkが型を提供している気がする。@slack/webhookかな
   const req = await c.req.json();
 
   if (req.type === "url_verification") {
@@ -25,8 +26,9 @@ app.post("/webhook", async (c) => {
   if (c.req.header("X-Slack-Retry-Num") !== undefined) return;
 
   await web.chat.postMessage({
-    channel: "#知恵",
+    channel: req.event.channel,
     text: `using sdk.`,
+    thread_ts: req.event.ts,
   });
 
   return;
