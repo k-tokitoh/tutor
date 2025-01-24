@@ -29,6 +29,7 @@
     "@slack/web-api": "^7.8.0",
     "aws-cdk-lib": "2.176.0",
     "constructs": "^10.0.0",
+    "discord-interactions": "^4.1.0",
     "hono": "^4.6.16"
   }
 }
