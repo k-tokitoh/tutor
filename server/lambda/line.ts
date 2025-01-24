@@ -33,6 +33,8 @@ app.get("/hoge", (c) =>
 
 app.post("/webhook", async (c) => {
   // replay完了まで待っているとタイムアウトしてしまう。webhook自体には200を即座に返す。
+  // ...と思ったけどreturnしないとレスポンスは返らないので、webhook的にはエラ-になってたくさんretryされていると思われる。
+  // 解決するにはlambdaを分割するなどの対応が必要
   c.status(200);
 
   // 署名を検証する

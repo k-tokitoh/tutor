@@ -23,7 +23,8 @@ app.post("/webhook", async (c) => {
     return c.text(reqBody.challenge);
   }
 
-  // lambdaで直ちにレスポンスしても、たぶんcold startのせいで3秒ルールに引っかかってリトライされてしまうので、雑に回避
+  // returnするまではレスポンスを返さないので、webhook的にはエラーになってretryがたくさん走っていると思われる
+  // 解決するにはlambdaを分割するなどの対応が必要
   if (c.req.header("X-Slack-Retry-Num") !== undefined) return;
 
   const replies = await web.conversations.replies({
