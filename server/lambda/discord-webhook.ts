@@ -1,7 +1,5 @@
 import { Env, Hono, MiddlewareHandler } from "hono";
 import { handle, LambdaContext, LambdaEvent } from "hono/aws-lambda";
-import { ChatOpenAI } from "@langchain/openai";
-import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import {
   InteractionType,
   InteractionResponseType,
@@ -41,6 +39,8 @@ const verifyKeyMiddleware =
 
 app.use(verifyKeyMiddleware());
 
+import { InvokeCommand, Lambda } from "@aws-sdk/client-lambda";
+
 app.post("/interactions", async (c) => {
   const reqBody = await c.req.json();
 
@@ -59,13 +59,23 @@ app.post("/interactions", async (c) => {
   if (type === InteractionType.APPLICATION_COMMAND) {
     const { name } = data;
 
-    console.log({ name });
-
     if (name === "ask") {
-      // Send a message into the channel where command was triggered from
+      console.log("before invoke");
+      const command = new InvokeCommand({
+        FunctionName: process.env.DOWNSTREAM_FUNCTION_NAME,
+        Payload: JSON.stringify({ foo: "bar" }),
+        // Eventだと非同期実行、RequestErrorResponseだと同期実行
+        // 同期実行だと、send()をawaitするとタイムアウトしちゃうし、awaitしないと呼び出しができてなさそう
+        // 非同期でsend()をawaitすることで、queueに入るまで確実に待つつくりにしたつもり
+        InvocationType: "Event",
+      });
+      const lambda = new Lambda();
+
+      await lambda.send(command);
+
       return c.json({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: "ok, you asked." },
+        data: { content: "ちょっとまっててね" },
       });
     }
 
@@ -75,8 +85,6 @@ app.post("/interactions", async (c) => {
 
   console.error("unknown interaction type", type);
   return c.json({ error: "unknown interaction type" }, 400);
-
-  return;
 });
 
 // ====================

@@ -36,9 +36,29 @@ export class Discord extends Construct {
       { parameterName: "tutor-discord-public-key" }
     ).stringValue;
 
-    // lambda関数
-    const fn = new NodejsFunction(this, "tutor-discord-lambda", {
-      entry: "lambda/discord.ts",
+    const discordToken = StringParameter.fromStringParameterAttributes(
+      this,
+      "tutor-discord-token",
+      { parameterName: "tutor-discord-token" }
+    ).stringValue;
+
+    const replyFn = new NodejsFunction(this, "tutor-discord-lambda-reply", {
+      entry: "lambda/discord-reply.ts",
+      handler: "handler", // entryファイルからexportされたhandler関数を指定
+      runtime: Runtime.NODEJS_22_X,
+      timeout: Duration.seconds(30), // デフォルトは3秒
+      bundling: {
+        bundleAwsSDK: true,
+      },
+      // fn.addEnvironment() でも追加できるよう
+      environment: {
+        DISCORD_TOKEN: discordToken,
+      },
+    });
+
+    // webhookで呼び出す関数
+    const webhookFn = new NodejsFunction(this, "tutor-discord-lambda-webhook", {
+      entry: "lambda/discord-webhook.ts",
       handler: "handler", // entryファイルからexportされたhandler関数を指定
       runtime: Runtime.NODEJS_22_X,
       timeout: Duration.seconds(30), // デフォルトは3秒
@@ -48,12 +68,16 @@ export class Discord extends Construct {
       // fn.addEnvironment() でも追加できるよう
       environment: {
         DISCORD_PUBLIC_KEY: discordPublicKey,
+        DOWNSTREAM_FUNCTION_NAME: replyFn.functionName,
       },
     });
 
+    // webhookFnがreplyFnを呼び出せるように権限を設定
+    replyFn.grantInvoke(webhookFn);
+
     // api gateway
     new LambdaRestApi(this, "tutor-discord-api", {
-      handler: fn,
+      handler: webhookFn,
     });
   }
 }
