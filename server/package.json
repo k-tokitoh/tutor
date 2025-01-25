@@ -13,6 +13,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "22.7.9",
+    "@types/source-map-support": "^0.5.10",
     "aws-cdk": "2.176.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
@@ -32,6 +33,7 @@
     "aws-cdk-lib": "2.176.0",
     "constructs": "^10.0.0",
     "discord-interactions": "^4.1.0",
-    "hono": "^4.6.16"
+    "hono": "^4.6.16",
+    "source-map-support": "^0.5.21"
   }
 }

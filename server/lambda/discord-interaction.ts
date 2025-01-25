@@ -1,14 +1,28 @@
+import "source-map-support/register";
 import { Env, Hono, MiddlewareHandler } from "hono";
-import { handle, LambdaContext, LambdaEvent } from "hono/aws-lambda";
 import {
-  InteractionType,
+  ApiGatewayRequestContext,
+  handle,
+  LambdaContext,
+  LambdaEvent,
+} from "hono/aws-lambda";
+// discordenoで代替できるかも。expressに対する不要な依存が発生しちゃう
+import {
+  // InteractionType,
   InteractionResponseType,
+  InteractionType,
   verifyKey,
 } from "discord-interactions";
+import {
+  DiscordInteraction,
+  InteractionResponseTypes,
+  InteractionTypes,
+} from "@discordeno/types";
 
 type Bindings = {
   event: LambdaEvent;
-  lambdaContext?: LambdaContext; // api gatewayをとおさず関数urlとかだとundefinedになるよう
+  lambdaContext: LambdaContext;
+  requestContext: ApiGatewayRequestContext;
 };
 
 // 型引数がcontext.envに追加される
@@ -40,43 +54,59 @@ const verifyKeyMiddleware =
 app.use(verifyKeyMiddleware());
 
 import { InvokeCommand, Lambda } from "@aws-sdk/client-lambda";
+import { createRestManager } from "@discordeno/rest";
 
 app.post("/interactions", async (c) => {
-  const reqBody = await c.req.json();
+  console.log({ env: c.env });
 
-  console.log({ reqBody });
+  const interaction: DiscordInteraction = await c.req.json();
 
-  const { type, id, data } = reqBody;
+  const { type, id, data, token, channel_id: channelId } = interaction;
+  console.log({ interaction });
+  console.log({ data });
 
-  console.log({ type });
-  if (type === InteractionType.PING) {
-    console.log("PING");
+  if (type === InteractionTypes.Ping) {
     return c.json({ type: InteractionResponseType.PONG });
   }
 
-  console.log({ data });
+  if (type === InteractionTypes.ApplicationCommand) {
+    if (data?.name === "ask") {
+      const REST = createRestManager({ token: process.env.DISCORD_TOKEN! });
 
-  if (type === InteractionType.APPLICATION_COMMAND) {
-    const { name } = data;
+      const options = {
+        type: InteractionResponseTypes.ChannelMessageWithSource,
+        data: { content: "ちょっとまっててね" },
+      };
+      const params = { withResponse: true };
+      const res = await REST.sendInteractionResponse(
+        id,
+        token,
+        options,
+        params
+      );
 
-    if (name === "ask") {
-      console.log("before invoke");
+      if (res && "resource" in res) {
+        console.log({ message: res.resource?.message });
+      }
+
+      if (!res) return;
+
+      // ================================
+
       const command = new InvokeCommand({
         FunctionName: process.env.DOWNSTREAM_FUNCTION_NAME,
-        Payload: JSON.stringify({ foo: "bar" }),
+        Payload: JSON.stringify({
+          channelId,
+          messageId: res.resource?.message?.id,
+        }),
         // Eventだと非同期実行、RequestErrorResponseだと同期実行
         // 同期実行だと、send()をawaitするとタイムアウトしちゃうし、awaitしないと呼び出しができてなさそう
         // 非同期でsend()をawaitすることで、queueに入るまで確実に待つつくりにしたつもり
         InvocationType: "Event",
       });
       const lambda = new Lambda();
-
       await lambda.send(command);
-
-      return c.json({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: "ちょっとまっててね" },
-      });
+      return c.status(202);
     }
 
     console.error(`unknown command: ${name}`);
@@ -87,6 +117,6 @@ app.post("/interactions", async (c) => {
   return c.json({ error: "unknown interaction type" }, 400);
 });
 
-// ====================
+// ================================
 
-export const handler = handle(app);
+export const handler = handle(app, 1);

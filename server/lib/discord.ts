@@ -49,6 +49,7 @@ export class Discord extends Construct {
       timeout: Duration.seconds(30), // デフォルトは3秒
       bundling: {
         bundleAwsSDK: true,
+        sourceMap: true,
       },
       // fn.addEnvironment() でも追加できるよう
       environment: {
@@ -56,28 +57,34 @@ export class Discord extends Construct {
       },
     });
 
-    // webhookで呼び出す関数
-    const webhookFn = new NodejsFunction(this, "tutor-discord-lambda-webhook", {
-      entry: "lambda/discord-webhook.ts",
-      handler: "handler", // entryファイルからexportされたhandler関数を指定
-      runtime: Runtime.NODEJS_22_X,
-      timeout: Duration.seconds(30), // デフォルトは3秒
-      bundling: {
-        bundleAwsSDK: true,
-      },
-      // fn.addEnvironment() でも追加できるよう
-      environment: {
-        DISCORD_PUBLIC_KEY: discordPublicKey,
-        DOWNSTREAM_FUNCTION_NAME: replyFn.functionName,
-      },
-    });
+    // interactionで呼び出す関数
+    const interactionFn = new NodejsFunction(
+      this,
+      "tutor-discord-lambda-interaction",
+      {
+        entry: "lambda/discord-interaction.ts",
+        handler: "handler", // entryファイルからexportされたhandler関数を指定
+        runtime: Runtime.NODEJS_22_X,
+        timeout: Duration.seconds(30), // デフォルトは3秒
+        bundling: {
+          bundleAwsSDK: true,
+          sourceMap: true,
+        },
+        // fn.addEnvironment() でも追加できるよう
+        environment: {
+          DISCORD_PUBLIC_KEY: discordPublicKey,
+          DOWNSTREAM_FUNCTION_NAME: replyFn.functionName,
+          DISCORD_TOKEN: discordToken,
+        },
+      }
+    );
 
-    // webhookFnがreplyFnを呼び出せるように権限を設定
-    replyFn.grantInvoke(webhookFn);
+    // interactionFnがreplyFnを呼び出せるように権限を設定
+    replyFn.grantInvoke(interactionFn);
 
     // api gateway
     new LambdaRestApi(this, "tutor-discord-api", {
-      handler: webhookFn,
+      handler: interactionFn,
     });
   }
 }
