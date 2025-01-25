@@ -42,6 +42,12 @@ export class Discord extends Construct {
       { parameterName: "tutor-discord-token" }
     ).stringValue;
 
+    const openAIApiKey = StringParameter.fromStringParameterAttributes(
+      this,
+      "tutor-openai-api-key",
+      { parameterName: "tutor-openai-api-key" }
+    ).stringValue;
+
     const replyFn = new NodejsFunction(this, "tutor-discord-lambda-reply", {
       entry: "lambda/discord-reply.ts",
       handler: "handler", // entryファイルからexportされたhandler関数を指定
@@ -54,6 +60,7 @@ export class Discord extends Construct {
       // fn.addEnvironment() でも追加できるよう
       environment: {
         DISCORD_TOKEN: discordToken,
+        OPENAI_API_KEY: openAIApiKey,
       },
     });
 

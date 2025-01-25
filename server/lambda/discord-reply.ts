@@ -15,14 +15,32 @@ export const handler = async (event: any) => {
   const messageId = event.messageId;
   const question = event.question;
 
-  const thread = await REST.startThreadWithMessage(channelId, messageId, {
-    name: "thread name", // todo: nameはUIに表示されるので、質問の内容がよさそう
-    autoArchiveDuration: 10080,
+  const threadPromise = await REST.startThreadWithMessage(
+    channelId,
+    messageId,
+    {
+      name: question,
+      autoArchiveDuration: 10080,
+    }
+  );
+
+  const model = new ChatOpenAI({
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    modelName: "gpt-3.5-turbo",
   });
+
+  // const messages = [
+  //   // new SystemMessage(""),
+  //   ...(replies.messages ?? []).map((m) => new HumanMessage(m.text ?? "")),
+  // ];
+
+  const answerPromise = model.invoke(question);
+
+  const [thread, answer] = await Promise.all([threadPromise, answerPromise]);
 
   // threadはなんとchannelの一種
   await REST.sendMessage(thread.id, {
-    content: `questioned: ${question}`,
+    content: answer.content.toString(),
   });
   return;
 };
