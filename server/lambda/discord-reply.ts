@@ -13,6 +13,7 @@ export const handler = async (event: any) => {
   const REST = createRestManager({ token: process.env.DISCORD_TOKEN! });
   const channelId = event.channelId;
   const messageId = event.messageId;
+  const question = event.question;
 
   const thread = await REST.startThreadWithMessage(channelId, messageId, {
     name: "thread name", // todo: nameはUIに表示されるので、質問の内容がよさそう
@@ -21,7 +22,7 @@ export const handler = async (event: any) => {
 
   // threadはなんとchannelの一種
   await REST.sendMessage(thread.id, {
-    content: "response from downstream function.",
+    content: `questioned: ${question}`,
   });
   return;
 };

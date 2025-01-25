@@ -93,11 +93,16 @@ app.post("/interactions", async (c) => {
 
       // ================================
 
+      const question = data.options?.find(
+        (opt) => opt.name === "question"
+      )?.value;
+
       const command = new InvokeCommand({
         FunctionName: process.env.DOWNSTREAM_FUNCTION_NAME,
         Payload: JSON.stringify({
           channelId,
           messageId: res.resource?.message?.id,
+          question,
         }),
         // Eventだと非同期実行、RequestErrorResponseだと同期実行
         // 同期実行だと、send()をawaitするとタイムアウトしちゃうし、awaitしないと呼び出しができてなさそう

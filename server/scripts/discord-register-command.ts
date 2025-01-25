@@ -1,3 +1,8 @@
+import {
+  ApplicationCommandOptionTypes,
+  DiscordCreateApplicationCommand,
+} from "@discordeno/types";
+
 const ASK_COMMAND = {
   name: "ask",
   description: "Ask something",
@@ -5,7 +10,15 @@ const ASK_COMMAND = {
   // 以下はよくわからん
   integration_types: [0, 1],
   contexts: [0, 1, 2],
-};
+  options: [
+    {
+      name: "question",
+      type: ApplicationCommandOptionTypes.String,
+      required: true,
+      description: "The question you want to ask",
+    },
+  ],
+} as const satisfies DiscordCreateApplicationCommand;
 
 const ALL_COMMANDS = [ASK_COMMAND];
 
