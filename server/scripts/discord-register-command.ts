@@ -17,6 +17,12 @@ const ASK_COMMAND = {
       required: true,
       description: "The question you want to ask",
     },
+    {
+      name: "attachment",
+      type: ApplicationCommandOptionTypes.Attachment,
+      required: false,
+      description: "The attachment you want to send",
+    },
   ],
 } as const satisfies DiscordCreateApplicationCommand;
 
