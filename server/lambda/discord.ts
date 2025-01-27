@@ -55,6 +55,8 @@ app.use(verifyKeyMiddleware());
 
 import { InvokeCommand, Lambda } from "@aws-sdk/client-lambda";
 import { createRestManager } from "@discordeno/rest";
+import { ChatOpenAI } from "@langchain/openai";
+import { type } from "os";
 
 app.post("/interactions", async (c) => {
   console.log({ env: c.env });
@@ -91,27 +93,49 @@ app.post("/interactions", async (c) => {
 
       if (!res) return;
 
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       // ================================
 
-      const question = data.options?.find(
-        (opt) => opt.name === "question"
-      )?.value;
+      const question = data.options?.find((opt) => opt.name === "question")
+        ?.value as string;
 
-      const command = new InvokeCommand({
-        FunctionName: process.env.DOWNSTREAM_FUNCTION_NAME,
-        Payload: JSON.stringify({
-          channelId,
-          messageId: res.resource?.message?.id,
-          question,
-        }),
-        // Eventだと非同期実行、RequestErrorResponseだと同期実行
-        // 同期実行だと、send()をawaitするとタイムアウトしちゃうし、awaitしないと呼び出しができてなさそう
-        // 非同期でsend()をawaitすることで、queueに入るまで確実に待つつくりにしたつもり
-        InvocationType: "Event",
+      const messageId = res.resource?.message?.id;
+
+      const threadPromise = await REST.startThreadWithMessage(
+        channelId!,
+        messageId!,
+        {
+          name: question,
+          autoArchiveDuration: 10080,
+        }
+      );
+
+      const model = new ChatOpenAI({
+        openAIApiKey: process.env.OPENAI_API_KEY,
+        modelName: "gpt-3.5-turbo",
       });
-      const lambda = new Lambda();
-      await lambda.send(command);
-      return c.status(202);
+
+      // const messages = [
+      //   // new SystemMessage(""),
+      //   ...(replies.messages ?? []).map((m) => new HumanMessage(m.text ?? "")),
+      // ];
+
+      const answerPromise = model.invoke(question);
+
+      const [thread, answer] = await Promise.all([
+        threadPromise,
+        answerPromise,
+      ]);
+
+      REST.sendFollowupMessage;
+      // threadはなんとchannelの一種
+      await REST.sendMessage(thread.id, {
+        content: answer.content.toString(),
+      });
+
+      c.status(202);
+      return c.body(null);
     }
 
     console.error(`unknown command: ${name}`);

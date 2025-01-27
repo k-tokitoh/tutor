@@ -48,46 +48,25 @@ export class Discord extends Construct {
       { parameterName: "tutor-openai-api-key" }
     ).stringValue;
 
-    const replyFn = new NodejsFunction(this, "tutor-discord-lambda-reply", {
-      entry: "lambda/discord-reply.ts",
+    // interactionで呼び出す関数
+    const interactionFn = new NodejsFunction(this, "tutor-discord-lambda", {
+      entry: "lambda/discord.ts",
       handler: "handler", // entryファイルからexportされたhandler関数を指定
       runtime: Runtime.NODEJS_22_X,
-      timeout: Duration.seconds(30), // デフォルトは3秒
+      // デフォルトは3秒. lambdaの上限は15minだが、api gatewayのデフォルト/上限タイムアウトは29秒であるためlambdaも同等にしておく。
+      // api gatewayの上限は申請により引き上げられる。 See: https://aws.amazon.com/jp/about-aws/whats-new/2024/06/amazon-api-gateway-integration-timeout-limit-29-seconds/
+      timeout: Duration.seconds(30),
       bundling: {
         bundleAwsSDK: true,
         sourceMap: true,
       },
       // fn.addEnvironment() でも追加できるよう
       environment: {
+        DISCORD_PUBLIC_KEY: discordPublicKey,
         DISCORD_TOKEN: discordToken,
         OPENAI_API_KEY: openAIApiKey,
       },
     });
-
-    // interactionで呼び出す関数
-    const interactionFn = new NodejsFunction(
-      this,
-      "tutor-discord-lambda-interaction",
-      {
-        entry: "lambda/discord-interaction.ts",
-        handler: "handler", // entryファイルからexportされたhandler関数を指定
-        runtime: Runtime.NODEJS_22_X,
-        timeout: Duration.seconds(30), // デフォルトは3秒
-        bundling: {
-          bundleAwsSDK: true,
-          sourceMap: true,
-        },
-        // fn.addEnvironment() でも追加できるよう
-        environment: {
-          DISCORD_PUBLIC_KEY: discordPublicKey,
-          DOWNSTREAM_FUNCTION_NAME: replyFn.functionName,
-          DISCORD_TOKEN: discordToken,
-        },
-      }
-    );
-
-    // interactionFnがreplyFnを呼び出せるように権限を設定
-    replyFn.grantInvoke(interactionFn);
 
     // api gateway
     new LambdaRestApi(this, "tutor-discord-api", {
