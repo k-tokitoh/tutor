@@ -9,7 +9,7 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "dev": "node -r ts-node/register --env-file=.env src/index.ts"
+    "start": "node -r ts-node/register --env-file=.env src/index.ts"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
