@@ -1,17 +1,20 @@
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
+import { Client, GatewayIntentBits } from "discord.js";
 
-const app = new Hono();
-
-app.get("/hoge", async (c) => {
-  return c.text("hoge!!");
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
 
-// ELBのヘルスチェックで200を返す必要あり
-app.get("/", async (c) => {
-  return c.text("ok");
+client.on("ready", () => {
+  console.log(`${client.user?.tag} でログインしています。`);
 });
+
+client.on("messageCreate", async (msg) => {
+  console.log("messageCreate", { msg });
+  if (msg.content === "!ping") {
+    msg.reply("Pong!");
+  }
+});
+
+client.login(process.env.DISCORD_BOT_TOKEN);
 
 // ================================
-
-serve(app);
