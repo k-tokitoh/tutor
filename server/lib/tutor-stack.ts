@@ -2,7 +2,6 @@ import * as path from "path";
 
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import * as ssm from "aws-cdk-lib/aws-ssm";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as ecrDeploy from "cdk-ecr-deployment";
 import * as iam from "aws-cdk-lib/aws-iam";
@@ -11,16 +10,20 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as ecrAssets from "aws-cdk-lib/aws-ecr-assets";
 import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
+import { fileURLToPath } from "url";
+import "path";
 
-export interface DiscordStackProps extends cdk.StackProps {
-  // tagOrDigest: string;
-  // cpu: number;
-  // memory: number;
+export const environments = ["dev", "edge-infra"] as const;
+export type Environment = (typeof environments)[number];
+
+export interface TutorStackProps extends cdk.StackProps {
+  environment: Environment;
+  secretsId: string;
 }
 
-export class Discord extends Construct {
-  constructor(scope: Construct, id: string, props: DiscordStackProps) {
-    super(scope, id);
+export class TutorStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: TutorStackProps) {
+    super(scope, id, props);
 
     // todo: ちゃんとする
     cdk.Tags.of(scope).add("my_key", "yes");
@@ -29,11 +32,13 @@ export class Discord extends Construct {
 
     // ================================ 環境変数
     // systems managerのSecureStringは一部のリソースでしか使えないため、SecretsManagerを使う
+    // 参考: https://dev.classmethod.jp/articles/aws-cdk-ssm-secrets-manager/
     const secrets = secretsManager.Secret.fromSecretCompleteArn(
       this,
       "Secrets",
-      `arn:aws:secretsmanager:${region}:${accountId}:secret:tutor-rik7JZ`
+      `arn:aws:secretsmanager:${region}:${accountId}:secret:${props.secretsId}` //
     );
+    const discordBotToken = ecs.Secret.fromSecretsManager(secrets, "discord-token");
 
     // ================================ VPC
 
@@ -45,10 +50,14 @@ export class Discord extends Construct {
 
     const repository = new ecr.Repository(this, "Repository", {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      repositoryName: "tutor-repository",
+      repositoryName: `${props.environment}-tutor-repository`,
     });
 
     // Deploy Image
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
     // 自動的に生成されるECRリポジトリにpushされる
     const dockerImageAsset = new ecrAssets.DockerImageAsset(this, "DockerImageAsset", {
       directory: path.join(__dirname, ".."),
@@ -65,7 +74,7 @@ export class Discord extends Construct {
     // ================================ ECS
 
     const logGroup = new logs.LogGroup(this, "LogGroup", {
-      logGroupName: "/ecs/tutor",
+      logGroupName: `/ecs/tutor/${props.environment}`,
       retention: logs.RetentionDays.ONE_WEEK, // SREに要相談
     });
 
@@ -83,9 +92,9 @@ export class Discord extends Construct {
 
     taskDefinition.addContainer("Container", {
       image: ecs.ContainerImage.fromEcrRepository(repository, dockerImageAsset.assetHash),
-      logging: new ecs.AwsLogDriver({ logGroup, streamPrefix: "/ecs/tutor" }),
+      logging: new ecs.AwsLogDriver({ logGroup, streamPrefix: `/ecs/tutor/${props.environment}` }),
       secrets: {
-        DISCORD_BOT_TOKEN: ecs.Secret.fromSecretsManager(secrets, "discord-token"),
+        DISCORD_BOT_TOKEN: discordBotToken,
       },
     });
 

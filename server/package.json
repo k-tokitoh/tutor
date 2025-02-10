@@ -4,12 +4,15 @@
   "bin": {
     "tmp": "bin/tmp.js"
   },
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk",
-    "start": "node -r ts-node/register --env-file=.env src/index.ts"
+    "deploy:edge-infra": "cdk deploy --profile private --context env=edge-infra",
+    "deploy:dev": "cdk deploy --profile private --context env=dev",
+    "start": "tsx src/index.ts",
+    "start:local": "tsx --env-file=.env src/index.ts"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -29,8 +32,11 @@
     "@line/bot-sdk": "^9.5.1",
     "@slack/types": "^2.14.0",
     "@slack/web-api": "^7.8.0",
+    "@t3-oss/env-core": "^0.12.0",
     "aws-cdk-lib": "2.176.0",
     "constructs": "^10.0.0",
-    "discord.js": "^14.17.3"
+    "discord.js": "^14.17.3",
+    "tsx": "^4.19.2",
+    "zod": "^3.24.1"
   }
 }
