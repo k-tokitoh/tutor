@@ -1,0 +1,7 @@
+*/
+!src/
+!node_modules/
+!package.json
+!package-lock.json
+# prodでもts-nodeを利用するため
+!tsconfig.json 
