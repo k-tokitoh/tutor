@@ -59,7 +59,7 @@ export class Discord extends Construct {
     });
 
     const vpc = new ec2.Vpc(this, "tutor-vpc", {
-      maxAzs: 2, // Default is all AZs in region
+      maxAzs: 1, // Default is all AZs in region
     });
 
     const nonPatternCluster = new ecs.Cluster(this, "non-pattern-cluster", {
