@@ -20,7 +20,7 @@ export class Discord extends Construct {
 
     const { accountId, region } = new cdk.ScopedAws(this);
 
-    // 環境変数
+    // ================================ 環境変数
     const discordPublicKey = ssm.StringParameter.fromStringParameterAttributes(
       this,
       "DiscordPublicKey",
@@ -39,13 +39,13 @@ export class Discord extends Construct {
       { parameterName: "tutor-openai-api-key" }
     ).stringValue;
 
-    // VPC
+    // ================================ VPC
 
     const vpc = new ec2.Vpc(this, "Vpc", {
       maxAzs: 1, // Default is all AZs in region
     });
 
-    // ECR
+    // ================================ ECR
 
     const repository = new ecr.Repository(this, "Repository", {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -63,30 +63,21 @@ export class Discord extends Construct {
       }
     );
 
-    console.log("#######################");
-    console.log({
-      uri: repository.repositoryUri,
-      digest: repository.repositoryUriForDigest("digest"),
-      tag: repository.repositoryUriForTag("tag"),
-    });
-    console.log("#######################");
-
     // See: https://github.com/cdklabs/cdk-ecr-deployment/issues/1017
-    // process.env.NO_PREBUILT_LAMBDA = "1";
+    process.env.NO_PREBUILT_LAMBDA = "1";
 
-    // new ecrDeploy.ECRDeployment(this, "DeployDockerImage", {
-    //   src: new ecrDeploy.DockerImageName(dockerImageAsset.imageUri),
-    //   dest: new ecrDeploy.DockerImageName(
-    //     repository.repositoryUriForDigest(dockerImageAsset.assetHash)
-    //     // `${accountId}.dkr.ecr.${region}.amazonaws.com/${repository.repositoryName}:latest`
-    //   ),
-    // });
+    new ecrDeploy.ECRDeployment(this, "DeployDockerImage", {
+      src: new ecrDeploy.DockerImageName(dockerImageAsset.imageUri),
+      dest: new ecrDeploy.DockerImageName(
+        repository.repositoryUriForTag(dockerImageAsset.assetHash)
+      ),
+    });
 
-    // ECS
+    // ================================ ECS
 
     const logGroup = new logs.LogGroup(this, "LogGroup", {
-      logGroupName: "/ecs/tutor", // ロググループ名を指定
-      retention: logs.RetentionDays.ONE_WEEK, // ログの保持期間を指定（例: 一週間）
+      logGroupName: "/ecs/tutor",
+      retention: logs.RetentionDays.ONE_WEEK, // SREに要相談
     });
 
     const cluster = new ecs.Cluster(this, "Cluster", {
@@ -108,7 +99,10 @@ export class Discord extends Construct {
     );
 
     taskDefinition.addContainer("Container", {
-      image: ecs.ContainerImage.fromEcrRepository(repository, "latest"), // latestじゃない運用はありうる？どういう形？
+      image: ecs.ContainerImage.fromEcrRepository(
+        repository,
+        dockerImageAsset.assetHash
+      ),
       logging: new ecs.AwsLogDriver({
         logGroup,
         streamPrefix: "/ecs/tutor",
