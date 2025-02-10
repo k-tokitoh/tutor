@@ -8,6 +8,6 @@ export class TutorStack extends Stack {
     super(scope, id, props);
 
     // new Slack(this, "slack", props);
-    new Discord(this, "discord", props);
+    new Discord(this, "Discord", props);
   }
 }
