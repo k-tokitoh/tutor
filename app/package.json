@@ -1,0 +1,15 @@
+{
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "start:local": "tsx --env-file=.env src/index.ts",
+    "watch": "tsx --watch src/index.ts"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1"
+  }
+}

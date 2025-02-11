@@ -12,6 +12,7 @@ import * as ecrAssets from "aws-cdk-lib/aws-ecr-assets";
 import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
 import { fileURLToPath } from "url";
 import "path";
+import { platform } from "os";
 
 export const environments = ["dev", "edge-infra"] as const;
 export type Environment = (typeof environments)[number];
@@ -60,7 +61,7 @@ export class TutorStack extends cdk.Stack {
 
     // 自動的に生成されるECRリポジトリにpushされる
     const dockerImageAsset = new ecrAssets.DockerImageAsset(this, "DockerImageAsset", {
-      directory: path.join(__dirname, ".."),
+      directory: path.join(__dirname, "../../app"),
       platform: ecrAssets.Platform.LINUX_AMD64,
     });
 

@@ -1,0 +1,17 @@
+{
+  "type": "module",
+  "scripts": {
+    "deploy:edge-infra": "cdk deploy --profile private --context env=edge-infra",
+    "deploy:dev": "cdk deploy --profile private --context env=dev"
+  },
+  "dependencies": {
+    "aws-cdk": "^2.178.1",
+    "aws-cdk-lib": "2.176.0",
+    "cdk-ecr-deployment": "^3.1.8",
+    "constructs": "^10.0.0",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.7.9"
+  }
+}
