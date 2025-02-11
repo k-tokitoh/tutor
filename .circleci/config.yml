@@ -1,0 +1,32 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@7.1.0
+  # aws-cli: circleci/aws-cli@5.1.2
+  # aws-ecr: circleci/aws-ecr@9.3.7
+
+jobs:
+  deploy:
+    executor: 
+      name: node/default
+      tag: '22.13.1'
+    steps:
+      - checkout
+      - node/install-packages:
+          app-dir: infra
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: deploy
+          command: |
+            cd infra
+            npm run deploy:dev
+
+workflows:
+  deploy:
+    jobs:
+      - deploy:
+          filters:
+            branches:
+              only:
+                - main
