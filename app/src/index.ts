@@ -1,11 +1,7 @@
 import { Client, GatewayIntentBits } from "discord.js";
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
 client.on("ready", () => {
@@ -13,20 +9,17 @@ client.on("ready", () => {
 });
 
 client.on("messageCreate", async (msg) => {
-  console.log("messageCreate", { msg });
-  console.log("msg.author.bot", msg.author.bot);
-
   if (msg.author.bot) {
     return;
-  } else {
+  } else if (msg.content === "ping") {
     await msg
-      .reply(`Hello, ${msg.author}! You said: ${msg.content}`)
-      .then((reply: unknown) => console.log(`Replied: ${reply}`))
+      .reply("pong")
+      .then((reply) => console.log(`replied: ${reply}`))
       .catch(console.error);
     return;
   }
 });
 
-client.login(process.env.DISCORD_BOT_TOKEN);
+console.log({ token: process.env.DISCORD_BOT_TOKEN });
 
-// ================================
+client.login(process.env.DISCORD_BOT_TOKEN);
