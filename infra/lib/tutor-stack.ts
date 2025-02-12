@@ -41,6 +41,25 @@ export class TutorStack extends cdk.Stack {
     );
     const discordBotToken = ecs.Secret.fromSecretsManager(secrets, "discord-token");
 
+    // ================================ OIDC
+    // 環境ごとのstackとは分離する？
+
+    const oidcProvider = new iam.CfnOIDCProvider(this, "OidcProvider", {
+      url: `https://oidc.circleci.com/org/7fc8cfb9-3bd4-4054-ae7b-46bbdf6ba15f`, // 環境変数にする？
+      clientIdList: ["sts.amazonaws.com"],
+    });
+
+    const role = new iam.Role(this, "OidcRole", {
+      assumedBy: new iam.WebIdentityPrincipal(`arn:aws:iam::${accountId}:oidc-provider/oidc.circleci.com`, {
+        StringEquals: {
+          "oidc.circleci.com:sub":
+            "org/7fc8cfb9-3bd4-4054-ae7b-46bbdf6ba15f/project/c26bdc70-01e5-4849-9e2d-8af1ab72862a/user/*", // 環境変数にすべき？
+        },
+      }),
+      // managedPolicies: [iam.ManagedPolicy.fromAwsManagedPolicyName("ReadOnlyAccess")],
+      managedPolicies: [],
+    });
+
     // ================================ VPC
 
     const vpc = new ec2.Vpc(this, "Vpc", {
