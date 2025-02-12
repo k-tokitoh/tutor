@@ -2,8 +2,7 @@ version: 2.1
 
 orbs:
   node: circleci/node@7.1.0
-  # aws-cli: circleci/aws-cli@5.1.2
-  # aws-ecr: circleci/aws-ecr@9.3.7
+  aws-cli: circleci/aws-cli@5.2.0
 
 jobs:
   deploy:
@@ -16,11 +15,13 @@ jobs:
           app-dir: infra
       - setup_remote_docker:
           docker_layer_caching: true
+      - aws-cli/setup:
+          region: us-east-1
       - run:
           name: deploy
           command: |
             cd infra
-            npm run deploy:dev
+            npm run deploy:dev -- --require-approval never
 
 workflows:
   deploy:
@@ -29,4 +30,5 @@ workflows:
           filters:
             branches:
               only:
-                - main
+                # - main
+                - non-existent

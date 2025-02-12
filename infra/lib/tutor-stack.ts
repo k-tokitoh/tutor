@@ -12,7 +12,6 @@ import * as ecrAssets from "aws-cdk-lib/aws-ecr-assets";
 import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
 import { fileURLToPath } from "url";
 import "path";
-import { platform } from "os";
 
 export const environments = ["dev", "edge-infra"] as const;
 export type Environment = (typeof environments)[number];
